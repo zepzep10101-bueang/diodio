@@ -7,17 +7,16 @@ import os
 
 app = FastAPI()
 
-# 업로드된 이미지를 저장할 폴더 생성
 UPLOAD_DIR = "static_images"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
-# 작가 10명 기본 데이터 초기화
 initial_writers = {}
 for i in range(1, 11):
     initial_writers[f"writer{i}"] = {
         "name": f"작가 {i}",
         "chars": 0,
-        "memo": "오늘도 마감 파이팅!",
+        "hours": "0시간 0분",
+        "memo": "마감 파이팅!",
         "checked": False,
         "image": ""
     }
@@ -36,10 +35,7 @@ def read_root():
         <title>작가 대통합⭐</title>
         <style>
             :root {{
-                --bg-color: #f7f9f6; /* 눈이 가장 편안한 은은한 파스텔톤 배경 */
-                --card-naver: #e8f5e9;
-                --card-ridi: #e2eafc;
-                --card-kakao: #fff3b0;
+                --bg-color: #f7f9f6;
                 --text-color: #2f3e46;
             }}
             body {{
@@ -47,71 +43,80 @@ def read_root():
                 background-color: var(--bg-color);
                 color: var(--text-color);
                 margin: 0;
-                padding: 30px;
+                padding: 15px;
             }}
             .header {{
                 text-align: center;
-                margin-bottom: 30px;
+                margin-bottom: 15px;
             }}
             .header h1 {{
-                font-size: 28px;
+                font-size: 24px;
+                margin: 0 0 5px 0;
                 color: #354f52;
             }}
+            .header p {{
+                font-size: 13px;
+                margin: 0;
+                color: #666;
+            }}
+            /* 한 화면에 아기자기하게 모여드는 그리드 레이아웃 */
             .container {{
-                display: flex;
-                flex-wrap: wrap;
-                gap: 20px;
-                justify-content: center;
-                max-width: 1200px;
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+                gap: 12px;
+                max-width: 1300px;
                 margin: 0 auto;
             }}
-            /* 카드 기본 스타일 (네이버 초록 테마 기본) */
+            /* 컴팩트하고 귀여운 카드 박스 */
             .card {{
-                background-color: var(--card-naver);
-                border-radius: 15px;
-                padding: 20px;
-                width: 220px;
-                box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+                border-radius: 12px;
+                padding: 12px;
+                box-shadow: 0 2px 6px rgba(0,0,0,0.05);
                 display: flex;
                 flex-direction: column;
-                gap: 8px;
+                gap: 5px;
+                font-size: 12px;
                 transition: background 0.3s;
             }}
-            .card input[type="text"], .card input[type="number"], .card textarea, .card select {{
+            .card select, .card input[type="text"], .card input[type="number"], .card textarea {{
                 width: 100%;
-                padding: 6px;
+                padding: 4px 6px;
                 border: 1px solid #ccc;
-                border-radius: 6px;
+                border-radius: 4px;
                 box-sizing: border-box;
-                font-size: 14px;
+                font-size: 11px;
             }}
             .card label {{
-                font-size: 13px;
                 font-weight: bold;
+                font-size: 11px;
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
             }}
             .preview-img {{
                 width: 100%;
-                height: 90px;
+                height: 70px;
                 object-fit: cover;
-                border-radius: 8px;
+                border-radius: 6px;
                 background: #fff;
                 border: 1px dashed #ccc;
                 display: flex;
                 align-items: center;
                 justify-content: center;
-                font-size: 12px;
+                font-size: 11px;
                 color: #888;
             }}
             button.save-btn {{
                 background-color: #52796f;
                 color: white;
                 border: none;
-                padding: 8px;
+                padding: 6px;
                 width: 100%;
-                border-radius: 6px;
+                border-radius: 4px;
                 cursor: pointer;
                 font-weight: bold;
-                margin-top: 5px;
+                font-size: 11px;
+                margin-top: 2px;
             }}
             button.save-btn:hover {{
                 background-color: #354f52;
@@ -121,7 +126,7 @@ def read_root():
     <body>
         <div class="header">
             <h1>작가 대통합⭐</h1>
-            <p>우리들의 편안한 실시간 마감 & 작업 공간</p>
+            <p>우리들의 편안한 실시간 마감 공간</p>
         </div>
 
         <div class="container" id="card-container"></div>
@@ -135,36 +140,40 @@ def read_root():
                 container.innerHTML = '';
                 
                 for (const [id, info] of Object.entries(data.writers)) {{
-                    let imgTag = info.image ? `<img src="${{info.image}}" class="preview-img">` : `<div class="preview-img">사진 없음</div>`;
-                    
-                    // 각자 자기 칸에서만 테마를 고를 수 있는 셀렉트 박스 상태 유지
+                    let imgTag = info.image ? `<img src="${{info.image}}" class="preview-img">` : `<div class="preview-img">사진/움짤 없음</div>`;
                     let selectedTheme = localStorage.getItem(`theme_${{id}}`) || 'naver';
                     
                     container.innerHTML += `
                         <div class="card" id="card_box_${{id}}" style="background-color: ${{getThemeColor(selectedTheme)}};">
-                            <label>테마 선택</label>
-                            <select onchange="changeCardTheme('${{id}}', this.value)">
-                                <option value="naver" ${{selectedTheme === 'naver' ? 'selected' : ''}}>초록 (네이버)</option>
-                                <option value="ridi" ${{selectedTheme === 'ridi' ? 'selected' : ''}}>파랑 (리디)</option>
-                                <option value="kakao" ${{selectedTheme === 'kakao' ? 'selected' : ''}}>노랑 (카카오)</option>
-                            </select>
+                            <div style="display:flex; justify-content:space-between; align-items:center;">
+                                <label style="font-size:10px;">테마</label>
+                                <select onchange="changeCardTheme('${{id}}', this.value)" style="width:75px; font-size:10px;">
+                                    <option value="naver" ${{selectedTheme === 'naver' ? 'selected' : ''}}>초록</option>
+                                    <option value="ridi" ${{selectedTheme === 'ridi' ? 'selected' : ''}}>파랑</option>
+                                    <option value="kakao" ${{selectedTheme === 'kakao' ? 'selected' : ''}}>노랑</option>
+                                </select>
+                            </div>
 
-                            <label>작가 이름</label>
-                            <input type="text" value="${{info.name}}" id="name_${{id}}">
+                            <label>작가 이름 <input type="text" value="${{info.name}}" id="name_${{id}}" style="width:110px;"></label>
                             
                             <label>출석 체크 <input type="checkbox" ${{info.checked ? 'checked' : ''}} id="check_${{id}}"></label>
                             
-                            <label>오늘 글자수</label>
-                            <input type="number" value="${{info.chars}}" id="chars_${{id}}">
+                            <label>글자수 <input type="number" value="${{info.chars}}" id="chars_${{id}}" style="width:110px;"></label>
+
+                            <label>작업시간 <input type="text" value="${{info.hours}}" id="hours_${{id}}" style="width:105px;"></label>
                             
-                            <label>내 컴퓨터 사진 올리기</label>
-                            <input type="file" id="file_${{id}}" accept="image/*" style="font-size:11px;">
+                            <div>
+                                <label style="margin-bottom:2px;">사진/움짤</label>
+                                <input type="file" id="file_${{id}}" accept="image/*" style="font-size:10px; width:100%;">
+                            </div>
                             ${{imgTag}}
                             
-                            <label>서브칸 메모</label>
-                            <textarea id="memo_${{id}}" rows="2">${{info.memo}}</textarea>
+                            <div>
+                                <label style="margin-bottom:2px;">메모</label>
+                                <textarea id="memo_${{id}}" rows="1" style="font-size:11px;">${{info.memo}}</textarea>
+                            </div>
                             
-                            <button class="save-btn" onclick="saveData('${{id}}')">저장하기</button>
+                            <button class="save-btn" onclick="saveData('${{id}}')">저장</button>
                         </div>
                     `;
                 }}
@@ -186,6 +195,7 @@ def read_root():
                 const name = document.getElementById(`name_${{writerId}}`).value;
                 const checked = document.getElementById(`check_${{writerId}}`).checked;
                 const chars = parseInt(document.getElementById(`chars_${{writerId}}`).value) || 0;
+                const hours = document.getElementById(`hours_${{writerId}}`).value;
                 const memo = document.getElementById(`memo_${{writerId}}`).value;
                 const fileInput = document.getElementById(`file_${{writerId}}`);
 
@@ -193,6 +203,7 @@ def read_root():
                 formData.append("writer_id", writerId);
                 formData.append("name", name);
                 formData.append("chars", chars);
+                formData.append("hours", hours);
                 formData.append("memo", memo);
                 formData.append("checked", checked);
                 
@@ -229,6 +240,7 @@ async def update_writer(
     writer_id: str = Form(...),
     name: str = Form(...),
     chars: int = Form(...),
+    hours: str = Form(...),
     memo: str = Form(...),
     checked: bool = Form(...),
     file: UploadFile = File(None)
@@ -236,7 +248,6 @@ async def update_writer(
     if writer_id in db["writers"]:
         image_path = db["writers"][writer_id]["image"]
         
-        # 파일이 새로 업로드되었다면 서버 폴더에 저장
         if file and file.filename:
             file_location = f"{UPLOAD_DIR}/{file.filename}"
             with open(file_location, "wb+") as buffer:
@@ -246,6 +257,7 @@ async def update_writer(
         db["writers"][writer_id].update({
             "name": name,
             "chars": chars,
+            "hours": hours,
             "memo": memo,
             "checked": checked,
             "image": image_path
